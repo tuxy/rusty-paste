@@ -12,6 +12,7 @@ name = "client"
 path = "src/client/bin/main.rs"
 
 [dependencies]
+aes-gcm = "0.10.3"
 clap = { version = "4.5.23", features = ["derive"] }
 nanoid = "0.4.0"
 serde = { version = "1.0.215", features = ["derive"] }
