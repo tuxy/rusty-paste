@@ -18,24 +18,43 @@ fn main() {
 
     match args.post {
         true => {
-            if args.content == None {
-                panic!("No content provided")
-            }
 
+            let content = match args.content {
+                Some(val) => val,
+                None => panic!("No content provided")
+            };
+            
             let request = ureq::post(&args.url)
-                .send_string(&args.content.unwrap())
-                .unwrap();
+            .send_string(&content);
 
-            println!("{}", request.into_string().unwrap())
-            // Yeah that's really about it
+            match request {
+                // Handle error for not being able to reach server
+                Ok(val) => {
+                    println!("{}", val.into_string().expect("Could not format reply content"));
+                }
+                Err(err) => {
+                    eprintln!("{err}");
+                    panic!();
+                }
+            }
         }
         false => {
             if args.content != None {
                 println!("Ignoring provided content");
             }
             let request = ureq::get(&args.url);
-            // Please fix this godawful thing
-            println!("{}", request.call().unwrap().into_string().unwrap())
+
+            match request.call() {
+                // Handle error for not being able to reach server
+                Ok(val) => {
+                    println!("{}", 
+                        val.into_string().expect("Could not format reply content"));
+                },
+                Err(err) => {
+                    eprintln!("Could not make request: {}", err);
+                    panic!();
+                },
+            };
         }
     }
 }
