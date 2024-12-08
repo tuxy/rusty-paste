@@ -39,7 +39,7 @@ fn main() {
             }
         }
         false => {
-            if args.content != None {
+            if args.content.is_some() {
                 println!("Ignoring provided content");
             }
             let request = ureq::get(&args.url);
