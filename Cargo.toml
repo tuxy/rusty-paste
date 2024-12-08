@@ -12,10 +12,10 @@ name = "client"
 path = "src/client/bin/main.rs"
 
 [dependencies]
-aes-gcm = "0.10.3"
 clap = { version = "4.5.23", features = ["derive"] }
 nanoid = "0.4.0"
 serde = { version = "1.0.215", features = ["derive"] }
+simplestcrypt = "0.1.4"
 tiny_http = "0.12.0"
 toml = "0.8.19"
 ureq = "2.12.1"

@@ -1,4 +1,1 @@
 bind_address = "127.0.0.1:8081"
-
-# paste_limit is not going to work soon! will be replaced with time_limit and eventually default_time_limit
-paste_limit = 20
