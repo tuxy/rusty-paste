@@ -1,5 +1,6 @@
 use tiny_http::{Request, Response, Server};
 use nanoid::nanoid;
+use std::thread;
 
 mod config;
 use config::Config;
@@ -23,6 +24,14 @@ fn main() {
             panic!()
         }
     };
+
+    thread::spawn(|| {
+        loop {
+            // This is where the time limits of each paste is monitored and deleted accordingly.
+            // Q: How to delete safely while the request loop accesses it?
+            todo!()
+        }
+    });
 
     for mut request in server.incoming_requests() {
 
