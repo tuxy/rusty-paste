@@ -19,7 +19,8 @@ fn main() -> Result<(), std::io::Error> {
     // Opens configulation file
     let config = Config::open_config();
 
-    let mut db: Database<PasteData> = Database::new("database.jdb").unwrap();
+    let db: Database<PasteData> = Database::new("database.jdb").unwrap();
+    let mut db_mutex: Mutex<Database<PasteData>> = Mutex::new(db);
 
     // Stores the id of the paste, as well as the content.
     let server = match Server::http(&config.bind_address) {
@@ -30,7 +31,8 @@ fn main() -> Result<(), std::io::Error> {
         }
     };
 
-    let _ = loop_and_check(&mut Mutex::new(db)).unwrap();
+    // Creates a new thread and continuously loops through, checking the time limit of the pastes
+    loop_and_check(&mut db_mutex).unwrap();
 
     for mut request in server.incoming_requests() {
 
@@ -44,19 +46,19 @@ fn main() -> Result<(), std::io::Error> {
         match request.url() {
             // Handle case for paste POST and URL creation
             "/" => {
-                post_paste(request, &mut db, config.clone(), content);
+                post_paste(request, &mut db_mutex, config.clone(), content);
             }
             // Handle case for paste GET and decryption
             _ => {
                 // For now, pass on a placeholder
-                get_paste(request, &mut db);
+                get_paste(request, &mut db_mutex);
             }
         }
     };
     Ok(())
 }
 
-fn post_paste(request: Request, db: &mut Database<PasteData>, config: Config, content: String) {
+fn post_paste(request: Request, db: &mut Mutex<Database<PasteData>>, config: Config, content: String) {
     // Set up encryption for URL
     let password = nanoid!(8);
     let bind_address = config.bind_address;
@@ -67,7 +69,7 @@ fn post_paste(request: Request, db: &mut Database<PasteData>, config: Config, co
             let id = nanoid!(8);
 
             // Appends to database
-            db.set(&id, PasteData {
+            db.lock().unwrap().set(&id, PasteData {
                 // wtf is this ahhhh
                 time_added: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
                 time_limit: config.time_limit,
@@ -90,7 +92,7 @@ fn post_paste(request: Request, db: &mut Database<PasteData>, config: Config, co
     };
 }
 
-fn get_paste(request: Request, db: &mut Database<PasteData>) { // _config is currently unused
+fn get_paste(request: Request, db: &mut Mutex<Database<PasteData>>) { // _config is currently unused
     // Removes the first character of the url, which is the '/'
     let mut url = request.url().chars();
     url.next();
@@ -101,7 +103,8 @@ fn get_paste(request: Request, db: &mut Database<PasteData>) { // _config is cur
 
     let (id, password) = (parts[0], parts[1]); 
 
-    let encrypted_data = db.get(id).unwrap().content;
+    // TODO
+    let encrypted_data = db.lock().unwrap().get(id).unwrap().content;
 
     let crypt = simplestcrypt::deserialize_and_decrypt(password.as_bytes(), &encrypted_data);
     match crypt {
@@ -124,24 +127,28 @@ fn get_paste(request: Request, db: &mut Database<PasteData>) { // _config is cur
 
 fn loop_and_check(db_unlock: &mut Mutex<Database<PasteData>>) -> Result<(), std::io::Error> {
     thread::scope(|s| {
-       s.spawn(|| {
-            // This is where the time limits of each paste is monitored and deleted accordingly.
-            // Q: How to delete safely while the request loop accesses it?
+        loop {
+            s.spawn(|| {
+                // This is where the time limits of each paste is monitored and deleted accordingly.
+                // Q: How to delete safely while the request loop accesses it?
 
-            let mut db=  db_unlock.lock().unwrap();
+                // TODO
+                let mut db=  db_unlock.lock().unwrap();
 
-            let time_now_in_sec = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-            
+                let time_now_in_sec = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+                
 
-            for i in db.iter() {
+                for i in db.iter() {
 
-                let paste_data = i.unwrap();
-                if time_now_in_sec - paste_data.1.time_added >= paste_data.1.time_limit {
-                    db_unlock.lock().unwrap().delete(paste_data.0).unwrap();
-                }
+                    let paste_data = i.unwrap();
+                    if time_now_in_sec - paste_data.1.time_added >= paste_data.1.time_limit {
+                        // God please fix this. What kind of monster have I created. TODO
+                        db_unlock.lock().unwrap().delete(paste_data.0).unwrap();
+                    }
 
-            };
-       }).join().unwrap();
+                };
+        }).join().unwrap();
+       }
     });
 
     Ok(())
