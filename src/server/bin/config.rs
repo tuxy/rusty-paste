@@ -1,10 +1,11 @@
 use serde::Deserialize;
 use std::fs;
 
+// All things related to opening and parsing config.toml
 #[derive(Deserialize, Clone)]
 pub struct Config {
     pub bind_address: String,
-    // pub time_limit: u64,
+    pub time_limit: u64,
 }
 
 impl Config {

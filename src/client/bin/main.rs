@@ -1,6 +1,6 @@
 use clap::Parser;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Args {
     #[arg(short, long)]
