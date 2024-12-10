@@ -1,6 +1,6 @@
-use tiny_http::Server;
+use tiny_http::{Server, SslConfig};
 use jasondb::Database;
-use std::sync::Mutex;
+use std::{fs, sync::Mutex};
 
 
 mod config;
@@ -26,7 +26,7 @@ fn main() -> Result<(), std::io::Error> {
     let server = match Server::http(&config.bind_address) {
         Ok(server) => server,
         Err(err) => {
-            eprintln!("Could bind to address: {}", err);
+            eprintln!("Could not bind to address: {}", err);
             panic!()
         }
     };

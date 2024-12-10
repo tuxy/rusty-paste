@@ -63,6 +63,7 @@ pub fn get_paste(request: Request, db: &mut Mutex<Database<PasteData>>) { // _co
     // Splits the url with the '#' and collects into Vec. Then assigns var id and password
     let parts = url.split("!").collect::<Vec<_>>();
 
+    // TODO, this could be empty
     let (id, password) = (parts[0], parts[1]); 
 
     // TODO: Implement loop?

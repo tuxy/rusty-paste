@@ -42,7 +42,7 @@ fn main() {
             if args.content.is_some() {
                 println!("Ignoring provided content");
             }
-            let request = ureq::get(&args.url);
+            let request = ureq::get(&args.url).call().unwrap();
 
             match request.call() {
                 // Handle error for not being able to reach server
