@@ -14,15 +14,15 @@ pub struct PasteData {
 }
 
 // Takes in the content, encrypts it and then adds it to the JasonDB 'database'. 
-pub fn post_paste(request: Request, db: &mut Mutex<Database<PasteData>>, config: Config, content: String) {
+pub fn post_paste(request: Request, db: &mut Mutex<Database<PasteData>>, config: Config, content: String, id_length: usize) {
     // Set up encryption for URL
-    let password = nanoid!(8);
+    let password = nanoid!(id_length);
     let bind_address = config.bind_address;
 
     let crypt = simplestcrypt::encrypt_and_serialize(password.as_bytes(), content.as_bytes());
     match crypt {
         Ok(ciphertext) => {              
-            let id = nanoid!(8);
+            let id = nanoid!(id_length);
 
             // Appends to database
             db.lock().unwrap().set(&id, PasteData {

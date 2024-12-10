@@ -1,9 +1,9 @@
 use clap::Parser;
+use arboard::{Clipboard, Error};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
     url: String,
 
     #[arg(short, long)]
@@ -15,6 +15,17 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
+
+    // Initialises clipboard
+    let mut clipboard_supported = false;
+    let clipboard = match Clipboard::new() {
+        Ok(clipboard) => Ok(clipboard),
+        Err(err) => {
+            eprintln!("Could not initialise clipboard: {err}");
+            clipboard_supported = false;
+            Err(Error::ClipboardNotSupported)
+        }
+    };
 
     match args.post {
         true => {
@@ -47,16 +58,18 @@ fn main() {
             match request.call() {
                 // Handle error for not being able to reach server
                 Ok(val) => {
-                    println!("{}", 
-                        val.into_string().expect("Could not format reply content"));
+                    let content = val.into_string().expect("Could not format reply content");
+                    println!("{}", content);
+                    if clipboard_supported {
+                        // TODO
+                        clipboard.unwrap().set_text(content).unwrap();
+                    }
                 },
                 Err(err) => {
                     eprintln!("Could not make request: {}", err);
                     panic!();
                 },
             };
-
-            // TODO: Handle event on --url without any path on URL (path /)
         }
     }
 }

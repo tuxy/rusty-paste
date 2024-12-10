@@ -6,6 +6,7 @@ use std::fs;
 pub struct Config {
     pub bind_address: String,
     pub time_limit: u64,
+    pub ident_length: usize,
 }
 
 impl Config {

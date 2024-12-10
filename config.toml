@@ -1,3 +1,5 @@
 bind_address = "127.0.0.1:8081"
 # Time limit is in seconds
 time_limit = 7200
+# Length for the id and password. Longer = more secure
+ident_length = 8

@@ -1,6 +1,6 @@
-use tiny_http::{Server, SslConfig};
+use tiny_http::Server;
 use jasondb::Database;
-use std::{fs, sync::Mutex};
+use std::sync::Mutex;
 
 
 mod config;
@@ -55,7 +55,7 @@ fn main() -> Result<(), std::io::Error> {
         match request.url() {
             // Handle case for paste POST and URL creation
             "/" => {
-                post_paste(request, &mut db_mutex, config.clone(), content);
+                post_paste(request, &mut db_mutex, config.clone(), content, config.ident_length);
             }
             // Handle case for paste GET and decryption
             _ => {
