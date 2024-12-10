@@ -23,3 +23,7 @@ Cargo.lock
 # Added by cargo
 
 /target
+
+# Ignore any ssl certificates generated
+cert.pem
+key.pem
