@@ -1,25 +1,25 @@
-use tiny_http::{Request, Response, Server};
+use tiny_http::Server;
 use jasondb::Database;
-use humphrey_json::prelude::*;
-use nanoid::nanoid;
-use std::{sync::Mutex, time::{SystemTime, UNIX_EPOCH}};
+use std::sync::Mutex;
 
 
 mod config;
 use config::Config;
 
-#[derive(Clone, FromJson, IntoJson)]
-struct PasteData {
-    time_added: u64,
-    time_limit: u64,
-    content: Vec<u8>,
-}
+mod methods;
+use methods::*;
 
 fn main() -> Result<(), std::io::Error> {
     // Opens configulation file
     let config = Config::open_config();
 
-    let db: Database<PasteData> = Database::new("database.jdb").unwrap();
+    let db: Database<PasteData> = match Database::new("database.jdb") {
+        Ok(db) => db,
+        Err(err) => {
+            eprintln!("Could not create/read database.jdb. Check permissions? Error: {err}");
+            panic!();
+        }
+    };
     let mut db_mutex: Mutex<Database<PasteData>> = Mutex::new(db);
 
     // Stores the id of the paste, as well as the content.
@@ -39,15 +39,18 @@ fn main() -> Result<(), std::io::Error> {
         // right now in order to improve performance (And multi tasking is hard). However, this may add 
         // A little extra overhead per request, and is not a good solution for long term. For example, 
         // if there were 0 requests, then it would not update, but if there were 10 simoultaneous requests,
-        // Then the database would be scanned 10 times. 
-        loop_and_check(&mut db_mutex).unwrap();
+        // Then the database would be scanned 10 times.
+        match loop_and_check(&mut db_mutex) {
+            Ok(_) => (), // Do nothing when no error is returned
+            Err(_) => eprintln!("Could not read or write to database.jdb. Check permissions?")
+        };
 
         // Checks URL and reads post content
         let mut content = String::new();
         request
             .as_reader()
             .read_to_string(&mut content)
-            .expect("Could not read to string");
+            .expect("Could not read request"); // When the request cannot be read
 
         match request.url() {
             // Handle case for paste POST and URL creation
@@ -61,99 +64,5 @@ fn main() -> Result<(), std::io::Error> {
             }
         }
     };
-    Ok(())
-}
-
-// Takes in the content, encrypts it and then adds it to the JasonDB 'database'. 
-fn post_paste(request: Request, db: &mut Mutex<Database<PasteData>>, config: Config, content: String) {
-    // Set up encryption for URL
-    let password = nanoid!(8);
-    let bind_address = config.bind_address;
-
-    let crypt = simplestcrypt::encrypt_and_serialize(password.as_bytes(), content.as_bytes());
-    match crypt {
-        Ok(ciphertext) => {              
-            let id = nanoid!(8);
-
-            // Appends to database
-            db.lock().unwrap().set(&id, PasteData {
-                // wtf is this ahhhh
-                time_added: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                time_limit: config.time_limit,
-                content: ciphertext
-            }).unwrap();
-
-            let response = 
-                Response::from_string(
-                    format!("https://{bind_address}/{id}!{password}")
-                );
-            let _ = request.respond(response);
-        },
-        Err(err) => {
-            let response = 
-            Response::from_string(
-                format!("Could not encrypt data: {:?}", err)
-            );
-            let _ = request.respond(response);
-        }
-    };
-}
-
-// Parses the URL in the GET request and splits it into its id and password, creates the key from the password,
-// decrypts the data and then sends it back. Technically not end to end encryption, since the work is done on the 
-// server and not the client to encrypt, and so technically the server has knowledge of the content keys.  
-fn get_paste(request: Request, db: &mut Mutex<Database<PasteData>>) { // _config is currently unused
-    // Removes the first character of the url, which is the '/'
-    let mut url = request.url().chars();
-    url.next();
-    let url = url.as_str();
-
-    // Splits the url with the '#' and collects into Vec. Then assigns var id and password
-    let parts = url.split("!").collect::<Vec<_>>();
-
-    let (id, password) = (parts[0], parts[1]); 
-
-    // TODO
-    let encrypted_data = db.lock().unwrap().get(id).unwrap().content;
-
-    let crypt = simplestcrypt::deserialize_and_decrypt(password.as_bytes(), &encrypted_data);
-    match crypt {
-        // Handle decryption errors
-        Ok(val) => {
-            let response = 
-                Response::from_string(String::from_utf8(val).unwrap());
-            let _ = request.respond(response);
-        },
-        // Return the decryption error to the client if decryption was to fail
-        Err(err) => {
-            let response = 
-                Response::from_string(
-                    format!("Could not decrypt data: {:?}", err)
-                );
-            let _ = request.respond(response);
-        }
-    };
-}
-
-fn loop_and_check(db_unlock: &mut Mutex<Database<PasteData>>) -> Result<(), std::io::Error> {
-    // This is where the time limits of each paste is monitored and deleted accordingly.
-    // Q: How to delete safely while the request loop accesses it?
-
-    // TODO
-    let mut db=  db_unlock.lock().unwrap();
-
-    let time_now_in_sec = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    
-
-    for i in db.iter() {
-
-        let paste_data = i.unwrap();
-        if time_now_in_sec - paste_data.1.time_added >= paste_data.1.time_limit {
-            // God please fix this. What kind of monster have I created. TODO
-            db_unlock.lock().unwrap().delete(paste_data.0).unwrap();
-        }
-
-    };
-
     Ok(())
 }
