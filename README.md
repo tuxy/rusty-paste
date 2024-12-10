@@ -1,3 +1,5 @@
+![](example.gif)
+
 # rusty-paste
 CLI pastebin and server with rust. Both the server and client are in `/server` and `/client` respectively.
 

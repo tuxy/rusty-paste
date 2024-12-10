@@ -37,7 +37,7 @@ pub fn post_paste(request: Request, db: &mut Mutex<Database<PasteData>>, config:
 
             let response = 
                 Response::from_string(
-                    format!("https://{bind_address}/{id}!{password}")
+                    format!("http://{bind_address}/{id}!{password}")
                 );
             let _ = request.respond(response);
         },
