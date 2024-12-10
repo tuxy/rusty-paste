@@ -55,6 +55,8 @@ fn main() {
                     panic!();
                 },
             };
+
+            // TODO: Handle event on --url without any path on URL (path /)
         }
     }
 }

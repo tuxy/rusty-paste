@@ -2,7 +2,7 @@ use tiny_http::{Request, Response, Server};
 use jasondb::Database;
 use humphrey_json::prelude::*;
 use nanoid::nanoid;
-use std::{sync::Mutex, thread, time::{SystemTime, UNIX_EPOCH}};
+use std::{sync::Mutex, time::{SystemTime, UNIX_EPOCH}};
 
 
 mod config;
@@ -32,9 +32,15 @@ fn main() -> Result<(), std::io::Error> {
     };
 
     // Creates a new thread and continuously loops through, checking the time limit of the pastes
-    loop_and_check(&mut db_mutex).unwrap();
 
     for mut request in server.incoming_requests() {
+
+        // Checks for expired data. The data doesn't actually get deleted at the exact time, but instead
+        // right now in order to improve performance (And multi tasking is hard). However, this may add 
+        // A little extra overhead per request, and is not a good solution for long term. For example, 
+        // if there were 0 requests, then it would not update, but if there were 10 simoultaneous requests,
+        // Then the database would be scanned 10 times. 
+        loop_and_check(&mut db_mutex).unwrap();
 
         // Checks URL and reads post content
         let mut content = String::new();
@@ -58,6 +64,7 @@ fn main() -> Result<(), std::io::Error> {
     Ok(())
 }
 
+// Takes in the content, encrypts it and then adds it to the JasonDB 'database'. 
 fn post_paste(request: Request, db: &mut Mutex<Database<PasteData>>, config: Config, content: String) {
     // Set up encryption for URL
     let password = nanoid!(8);
@@ -92,6 +99,9 @@ fn post_paste(request: Request, db: &mut Mutex<Database<PasteData>>, config: Con
     };
 }
 
+// Parses the URL in the GET request and splits it into its id and password, creates the key from the password,
+// decrypts the data and then sends it back. Technically not end to end encryption, since the work is done on the 
+// server and not the client to encrypt, and so technically the server has knowledge of the content keys.  
 fn get_paste(request: Request, db: &mut Mutex<Database<PasteData>>) { // _config is currently unused
     // Removes the first character of the url, which is the '/'
     let mut url = request.url().chars();
@@ -126,30 +136,24 @@ fn get_paste(request: Request, db: &mut Mutex<Database<PasteData>>) { // _config
 }
 
 fn loop_and_check(db_unlock: &mut Mutex<Database<PasteData>>) -> Result<(), std::io::Error> {
-    thread::scope(|s| {
-        loop {
-            s.spawn(|| {
-                // This is where the time limits of each paste is monitored and deleted accordingly.
-                // Q: How to delete safely while the request loop accesses it?
+    // This is where the time limits of each paste is monitored and deleted accordingly.
+    // Q: How to delete safely while the request loop accesses it?
 
-                // TODO
-                let mut db=  db_unlock.lock().unwrap();
+    // TODO
+    let mut db=  db_unlock.lock().unwrap();
 
-                let time_now_in_sec = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-                
+    let time_now_in_sec = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    
 
-                for i in db.iter() {
+    for i in db.iter() {
 
-                    let paste_data = i.unwrap();
-                    if time_now_in_sec - paste_data.1.time_added >= paste_data.1.time_limit {
-                        // God please fix this. What kind of monster have I created. TODO
-                        db_unlock.lock().unwrap().delete(paste_data.0).unwrap();
-                    }
+        let paste_data = i.unwrap();
+        if time_now_in_sec - paste_data.1.time_added >= paste_data.1.time_limit {
+            // God please fix this. What kind of monster have I created. TODO
+            db_unlock.lock().unwrap().delete(paste_data.0).unwrap();
+        }
 
-                };
-        }).join().unwrap();
-       }
-    });
+    };
 
     Ok(())
 }
