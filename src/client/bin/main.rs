@@ -4,9 +4,9 @@ use arboard::{Clipboard, Error};
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Args {
+    #[arg(short, long)]
     url: String,
 
-    #[arg(short, long)]
     content: Option<String>,
 
     #[arg(short, long)]
