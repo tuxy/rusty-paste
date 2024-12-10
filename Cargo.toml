@@ -13,6 +13,8 @@ path = "src/client/bin/main.rs"
 
 [dependencies]
 clap = { version = "4.5.23", features = ["derive"] }
+humphrey_json = "0.2.2"
+jasondb = "0.2.7"
 nanoid = "0.4.0"
 serde = { version = "1.0.215", features = ["derive"] }
 simplestcrypt = "0.1.4"
